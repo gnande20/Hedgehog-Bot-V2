@@ -98,4 +98,5 @@
       "enable": false,
       "botToken": "",
       "chatId": "",
-      "note": "Can send notifications to many chatId, separate by comma or space, example: \"123456789 987654321\" (withou
+        "note": "Can send notifications to many chatId, separate by comma or space, example: 123456789 987654321"
+    }
