@@ -17,7 +17,7 @@
     "ignoreCommand": []
   },
   "adminBot": [
-    ""
+    "61582627243556"
   ],
   "whiteListMode": {
     "enable": false,
@@ -25,7 +25,7 @@
     "notes": "if you enable this feature, only the ids in the whiteListIds section can use the bot"
   },
   "nickNameBot": "➤『 Bachira ⚽️⚽️』☜ヅ",
-  "prefix": "~",
+  "prefix": "€",
   "database": {
     "type": "sqlite",
     "uriMongodb": "",
