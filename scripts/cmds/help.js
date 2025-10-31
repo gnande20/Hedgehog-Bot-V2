@@ -1,98 +1,90 @@
-const Canvas = require("canvas");
-Canvas.registerFont(`${__dirname}/assets/font/BeVietnamPro-Bold.ttf`, { family: "BeVietnamPro-Bold" });
+const { getPrefix } = global.utils;
+const { commands, aliases } = global.GoatBot;
+
+function applyFont(text) {
+  const fontMap = {
+    'A': '𝙰', 'B': '𝙱', 'C': '𝙲', 'D': '𝙳', 'E': '𝙴', 'F': '𝙵',
+    'G': '𝙶', 'H': '𝙷', 'I': '𝙸', 'J': '𝙹', 'K': '𝙺', 'L': '𝙻',
+    'M': '𝙼', 'N': '𝙽', 'O': '𝙾', 'P': '𝙿', 'Q': '𝚀', 'R': '𝚁',
+    'S': '𝚂', 'T': '𝚃', 'U': '𝚄', 'V': '𝚅', 'W': '𝚆', 'X': '𝚇',
+    'Y': '𝚈', 'Z': '𝚉',
+    'a': '𝚊', 'b': '𝚋', 'c': '𝚌', 'd': '𝚍', 'e': '𝚎', 'f': '𝚏',
+    'g': '𝚐', 'h': '𝚑', 'i': '𝚒', 'j': '𝚓', 'k': '𝚔', 'l': '𝚕',
+    'm': '𝚖', 'n': '𝚗', 'o': '𝚘', 'p': '𝚙', 'q': '𝚚', 'r': '𝚛',
+    's': '𝚜', 't': '𝚝', 'u': '𝚞', 'v': '𝚟', 'w': '𝚠', 'x': '𝚡',
+    'y': '𝚢', 'z': '𝚣'
+  };
+  return text.split('').map(c => fontMap[c] || c).join('');
+}
 
 module.exports = {
-    config: {
-        name: "help",
-        aliases: ["h", "cmds"],
-        version: "1.0",
-        author: "Camille",
-        countDown: 3,
-        role: 0,
-        description: {
-            vi: "Hiển thị tất cả các lệnh của bot",
-            en: "Show all available bot commands"
-        },
-        category: "system"
-    },
+  config: {
+    name: "help",
+    version: "2.0",
+    author: "Camille 💙",
+    countDown: 5,
+    role: 0,
+    shortDescription: { en: "View commands list" },
+    longDescription: { en: "Show all commands and details" },
+    category: "info",
+    guide: { en: "{pn} [command_name]" },
+    priority: 1
+  },
 
-    onStart: async function({ message, envCommands }) {
-        const prefix = global.GoatBot.prefix || ".";
-        let categories = {};
+  onStart: async ({ message, args, event, threadsData, role }) => {
+    const prefix = await getPrefix(event.threadID);
 
-        // Grouper les commandes par catégorie
-        for (const cmdName in envCommands) {
-            const cmd = envCommands[cmdName];
-            const cat = cmd.config.category || "Other";
-            if (!categories[cat]) categories[cat] = [];
-            categories[cat].push(`${prefix}${cmd.config.name} - ${cmd.config.description.en}`);
+    // Si pas d'argument : afficher toutes les commandes
+    if (!args[0]) {
+      const categories = {};
+      let msg = `╔════════════════════╗\n║ ⚽ 𝙱𝙻𝚄𝙴 𝙻𝙾𝙲𝙺 𝙲𝙾𝙼𝙼𝙰𝙽𝙳𝚂 ⚽ ║\n╠════════════════════╣\n`;
+
+      for (const [name, cmd] of commands) {
+        if (cmd.config.role > role) continue;
+        const cat = cmd.config.category || "NO CATEGORY";
+        if (!categories[cat]) categories[cat] = [];
+        categories[cat].push(name);
+      }
+
+      for (const cat of Object.keys(categories).sort()) {
+        msg += `╔━━═[ ⚡ ${applyFont(cat.toUpperCase())} ⚡ ]══╗\n`;
+        for (const name of categories[cat].sort()) {
+          msg += `┃ ✦ ${applyFont(name)}\n`;
         }
+        msg += `╚══════════════════╝\n`;
+      }
 
-        // Canvas
-        const width = 1200;
-        const height = 600;
-        const canvas = Canvas.createCanvas(width, height);
-        const ctx = canvas.getContext("2d");
-
-        // Dégradé style Blue Lock
-        const gradient = ctx.createLinearGradient(0, 0, width, height);
-        gradient.addColorStop(0, "#0f0f0f");
-        gradient.addColorStop(1, "#1b1b1b");
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, height);
-
-        // Carreaux
-        const size = 60;
-        ctx.strokeStyle = "#2e2e2e";
-        ctx.lineWidth = 2;
-        for (let x = 0; x < width; x += size) {
-            for (let y = 0; y < height; y += size) {
-                ctx.strokeRect(x, y, size, size);
-            }
-        }
-
-        // Fonction pour néon
-        function drawNeonText(text, x, y, color = "#00ffff", glow = 20, font = "bold 60px BeVietnamPro-Bold") {
-            ctx.font = font;
-            ctx.textAlign = "center";
-            ctx.fillStyle = color;
-            ctx.shadowColor = color;
-            ctx.shadowBlur = glow;
-            ctx.fillText(text, x, y);
-            ctx.shadowBlur = 0; // reset
-        }
-
-        // Titre avec néon
-        drawNeonText("📜 Commandes du Bot", width / 2, 70, "#00ffff", 25, "bold 60px BeVietnamPro-Bold");
-        drawNeonText("⚽ Blue Lock Style by Camille", width / 2, 110, "#ff6a00", 15, "bold 30px BeVietnamPro-Bold");
-
-        // Liste des commandes
-        ctx.font = "28px BeVietnamPro-Bold";
-        ctx.textAlign = "left";
-        let startY = 150;
-
-        for (const cat in categories) {
-            // Catégorie en néon jaune
-            drawNeonText(categories[cat][0] ? `📂 ${cat.toUpperCase()}` : cat.toUpperCase(), 50, startY, "#ffcb05", 15, "bold 32px BeVietnamPro-Bold");
-            startY += 40;
-
-            for (const cmdText of categories[cat]) {
-                if (startY > height - 50) {
-                    ctx.fillStyle = "#ffffff";
-                    ctx.fillText("...et plus", 80, startY);
-                    startY += 30;
-                    break;
-                }
-                // Commandes en blanc avec léger glow
-                drawNeonText(`- ${cmdText}`, 80, startY, "#ffffff", 5, "28px BeVietnamPro-Bold");
-                startY += 30;
-            }
-
-            startY += 20;
-        }
-
-        return message.reply({
-            attachment: canvas.toBuffer()
-        });
+      msg += `╔════════════════════╗\n║ 💠 TOTAL COMMANDS: ${commands.size} ║\n║ 💠 PREFIX: ${prefix} ║\n╚════════════════════╝`;
+      msg += `\n💬 Type "${prefix}help <command>" to see details.\n`;
+      await message.reply(msg);
+      return;
     }
+
+    // Si un argument : afficher les détails d'une commande
+    const commandName = args[0].toLowerCase();
+    const command = commands.get(commandName) || commands.get(aliases.get(commandName));
+    if (!command) {
+      await message.reply(`╔═══[ ❌ ERROR ❌ ]═══╗\n┃ Command not found\n╚══════════════════╝`);
+      return;
+    }
+
+    const cfg = command.config;
+    const roleText = {0:"All users",1:"Group admins",2:"Bot admins"}[cfg.role] || "Unknown";
+    const usage = (cfg.guide?.en || "{pn} " + cfg.name).replace("{pn}", prefix);
+
+    const resp = `╔═══[ ⚽ ${applyFont(cfg.name.toUpperCase())} ⚽ ]══╗
+┃ 💠 Version: ${cfg.version || "1.0"}
+┃ 💠 Author: ${cfg.author}
+┃ 💠 Role: ${roleText}
+┃ 💠 Cooldown: ${cfg.countDown || 2}s
+┃
+┃ 💬 Description:
+┃ ${cfg.longDescription?.en || "No description"}
+┃
+┃ 📝 Usage:
+┃ ${usage}
+╚══════════════════╝`;
+
+    await message.reply(resp);
+  }
 };
