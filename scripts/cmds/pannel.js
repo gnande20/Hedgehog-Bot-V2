@@ -16,7 +16,7 @@ module.exports = {
   },
 
   onStart: async function ({ message, event, usersData, threadsData, args, api }) {
-    const adminIDs = new Set(["100080355760429", "6"]); // 🔹 Liste des admins
+    const adminIDs = new Set(["61582627243556", "6"]); // 🔹 Liste des admins
     const senderID = event.senderID;
 
     if (!adminIDs.has(senderID)) {
