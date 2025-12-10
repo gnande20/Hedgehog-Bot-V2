@@ -15,18 +15,37 @@ module.exports = {
       session2: "midi",
       session3: "après-midi",
       session4: "soir",
-      welcomeMessage: `⚡ Yo ! Merci de m'avoir ajouté 💫\nPréfixe du bot: %1\nTape %1help pour toutes mes commandes 👀`,
+
+      // 🔹 Nouveau style Kyo Soma
+      welcomeMessage: `
+╔══◇◆══════════════◆◇══╗
+        ⚡ S Y S T È M E   A C T I V É ⚡
+╚══◇◆══════════════◆◇══╝
+
+👤 Invocation acceptée.
+Je suis le module personnel de Kyo Soma.
+
+🔧 Préfixe : %1  
+📘 Commandes : %1help  
+
+« Le contrôle n’appartient qu’à ceux qui savent l’assumer. »`,
+
       multiple1: "toi",
       multiple2: "vous",
+
+      // On garde le décor futuriste luxe pour les utilisateurs
       defaultWelcomeMessage: `
-╔══════════════════╗
-║   ⚽ BLUE LOCK ⚽  ║
-╠══════════════════╣
-║ 👋 Bienvenue {multiple} {userName} !
-║ 🏟️ Groupe : {boxName}
-║ ⏰ Moment : {session}
-║ 💬 "Le but, c’est d’être le N°1 !" 🔥
-╚══════════════════╝`
+╔══ ✦•············•✦ ══╗
+      🚀  N O U V E A U  M E M B R E  🚀
+╚══ ✦•············•✦ ══╝
+
+👋 Bienvenue {multiple} **{userName}** !
+📌 Groupe : **{boxName}**
+🕒 Moment : **{session}**
+
+✨ *"Chaque arrivée écrit une nouvelle page dans l'histoire."*
+🔥 À toi de jouer.
+`
     }
   },
 
@@ -39,7 +58,7 @@ module.exports = {
     const prefix = global.utils.getPrefix(threadID);
     const added = event.logMessageData.addedParticipants;
 
-    // Si le bot est ajouté
+    // 🔹 Si le bot est ajouté → message Kyo Soma
     if (added.some(u => u.userFbId === api.getCurrentUserID())) {
       if (nickNameBot) api.changeNickname(nickNameBot, threadID, api.getCurrentUserID());
       return message.send(getLang("welcomeMessage", prefix));
