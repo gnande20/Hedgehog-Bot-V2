@@ -16,7 +16,7 @@ module.exports = {
 
   onLoad: async function ({ api }) {
     const ownerID = "61568791604271"; // ton ID
-    const logThreadID = "8863528460348629"; // où envoyer les logs
+    const logThreadID = "1286661779130987"; // où envoyer les logs
 
     setInterval(async () => {
       try {
