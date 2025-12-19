@@ -1,15 +1,15 @@
 const axios = require("axios");
 
-// ================= UTILITAIRE API =================
+// ================= API =================
 async function fetchFromAI(url, params) {
   try {
-    const response = await axios.get(url, {
+    const res = await axios.get(url, {
       params,
       timeout: 20000
     });
-    return response.data;
-  } catch (error) {
-    console.error("Erreur API :", error.message);
+    return res.data;
+  } catch (e) {
+    console.error("API error:", e.message);
     return null;
   }
 }
@@ -19,9 +19,7 @@ async function getAIResponse(input, userName) {
     {
       url: "https://arychauhann.onrender.com/api/gemini-proxy2",
       params: {
-        prompt: `Tu es Kyo Soma (Fruits Basket).
-Impulsif, franc, parfois agressif mais sincère.
-Ne dis jamais que tu es une IA.
+        prompt: `Tu es une IA créé par Kyo Soma.
 
 ${userName} : ${input}`
       }
@@ -36,67 +34,56 @@ ${userName} : ${input}`
   ];
 
   let response =
-    "😾 Kyo Soma :\n\nTch… les serveurs répondent pas. Reviens plus tard.";
+    "😾 Kyo Soma :\n\nTch… les serveurs sont morts. Reviens plus tard.";
 
-  for (const service of services) {
-    const data = await fetchFromAI(service.url, service.params);
-    if (data) {
-      const reply =
-        data.result || data.reply || data.gpt4 || data.response;
-      if (reply && reply.trim()) {
-        response = reply;
-        break;
-      }
+  for (const s of services) {
+    const data = await fetchFromAI(s.url, s.params);
+    if (!data) continue;
+
+    const reply = data.result || data.reply || data.gpt4 || data.response;
+    if (reply && reply.trim()) {
+      response = reply;
+      break;
     }
   }
 
   return response;
 }
 
-// ================= REGEX CRÉATEUR =================
+// ================= REGEX =================
 const creatorRegex =
   /(qui\s+(t'?a|t’a)\s+cr(é|e)é|ton\s+cr(é|e)ateur|qui\s+ta\s+fait|qui\s+est\s+ton\s+createur)/i;
 
-// ================= MODULE GOATBOT =================
+// ================= MODULE =================
 module.exports = {
   config: {
-    name: "ai",
-    aliases: ["aesther", "ae", "jokers"],
-    author: "Samycharles (mod Kyo Soma)",
+    name: "kyosoma",
+    aliases: ["kyo soma", "kyo"],
+    author: "Samycharles (Kyo Soma mode)",
     role: 0,
     category: "ai",
-    shortDescription: "Parler avec Kyo Soma sans préfixe",
+    shortDescription: "Parler avec Kyo Soma",
     guide: {
-      fr: "ai <question> ou commence par ai / ae / jokers"
+      fr: "Kyo Soma <question>"
     }
   },
 
-  // ========= AVEC PRÉFIXE =========
+  // ===== AVEC PRÉFIXE =====
   onStart: async function ({ api, event, args }) {
     const input = args.join(" ").trim();
     if (!input) {
       return api.sendMessage(
-        "😾 Kyo Soma :\n\nT’as un problème ? Pose ta question.",
+        "😾 Kyo Soma :\n\nQuoi ? Parle.",
         event.threadID,
         event.messageID
       );
     }
-
-    // 🔥 RÉPONSE CRÉATEUR
-    if (creatorRegex.test(input)) {
-      return api.sendMessage(
-        "😾 Kyo Soma :\n\nTss… pose pas trop de questions.\nC’est **Kyo Soma**, mon créateur.",
-        event.threadID,
-        event.messageID
-      );
-    }
-
-    api.getUserInfo(event.senderID, async (err, ret) => {
+    
+    api.getUserInfo(event.senderID, async (err, data) => {
       if (err) return;
-      const userName = ret[event.senderID]?.name || "toi";
+      const userName = data[event.senderID]?.name || "toi";
 
       api.setMessageReaction("⏳", event.messageID, () => {}, true);
-
       const response = await getAIResponse(input, userName);
 
       api.sendMessage(
@@ -108,33 +95,39 @@ module.exports = {
     });
   },
 
-  // ========= SANS PRÉFIXE =========
+  // ===== SANS PRÉFIXE =====
   onChat: async function ({ api, event, message }) {
     if (!event.body) return;
 
-    const match = event.body.match(/^(ai|aesther|ae|jokers)\s+(.*)/i);
+    const body = event.body.trim();
+
+    // ❌ Bloque totalement "ai"
+    if (/^ai\b/i.test(body)) return;
+
+    // 👀 Si on dit seulement "Kyo Soma"
+    if (/^kyo\s+soma$/i.test(body)) {
+      return message.reply(
+        "😾 Kyo Soma :\n\nTch… quoi encore ?"
+      );
+    }
+
+    // 🔑 Déclencheur Kyo Soma
+    const match = body.match(/^(kyo\s+soma|kyo)\s+(.*)/i);
     if (!match) return;
 
     const input = match[2].trim();
     if (!input) return;
-
-    // 🔥 RÉPONSE CRÉATEUR
-    if (creatorRegex.test(input)) {
-      return message.reply(
-        "😾 Kyo Soma :\n\nTss… pose pas trop de questions.\nC’est **Kyo Soma**, mon créateur."
-      );
-    }
-
-    api.getUserInfo(event.senderID, async (err, ret) => {
+    
+    api.getUserInfo(event.senderID, async (err, data) => {
       if (err) return;
-      const userName = ret[event.senderID]?.name || "toi";
+      const userName = data[event.senderID]?.name || "toi";
 
       api.setMessageReaction("⏳", event.messageID, () => {}, true);
-
       const response = await getAIResponse(input, userName);
 
-      message.reply(`😾 Kyo Soma :\n\n${response}`, () =>
-        api.setMessageReaction("✅", event.messageID, () => {}, true)
+      message.reply(
+        `😾 Kyo Soma :\n\n${response}`,
+        () => api.setMessageReaction("✅", event.messageID, () => {}, true)
       );
     });
   }
