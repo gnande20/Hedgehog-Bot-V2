@@ -19,7 +19,7 @@ async function getAIResponse(input, userName) {
     {
       url: "https://arychauhann.onrender.com/api/gemini-proxy2",
       params: {
-        prompt: `Tu es une IA créé par Kyo Soma.
+        prompt: `Tu es une IA créé par Kyo Soma et ton deuxième créateur c'est Célestin.
 
 ${userName} : ${input}`
       }
