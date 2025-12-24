@@ -1,94 +1,107 @@
 const { getPrefix } = global.utils;
 const { commands, aliases } = global.GoatBot;
 
-function applyFont(text) {
+function applyFont(text = "") {
   const fontMap = {
-    'A': '𝓐', 'B': '𝓑', 'C': '𝓒', 'D': '𝓓', 'E': '𝓔', 'F': '𝓕',
-    'G': '𝓖', 'H': '𝓗', 'I': '𝓘', 'J': '𝓙', 'K': '𝓚', 'L': '𝓛',
-    'M': '𝓜', 'N': '𝓝', 'O': '𝓞', 'P': '𝓟', 'Q': '𝓠', 'R': '𝓡',
-    'S': '𝓢', 'T': '𝓣', 'U': '𝓤', 'V': '𝓥', 'W': '𝓦', 'X': '𝓧',
-    'Y': '𝓨', 'Z': '𝓩',
-    'a': '𝓪', 'b': '𝓫', 'c': '𝓬', 'd': '𝓭', 'e': '𝓮', 'f': '𝓯',
-    'g': '𝓰', 'h': '𝓱', 'i': '𝓲', 'j': '𝓳', 'k': '𝓴', 'l': '𝓵',
-    'm': '𝓶', 'n': '𝓷', 'o': '𝓸', 'p': '𝓹', 'q': '𝓺', 'r': '𝓻',
-    's': '𝓼', 't': '𝓽', 'u': '𝓾', 'v': '𝓿', 'w': '𝔀', 'x': '𝔁',
-    'y': '𝔂', 'z': '𝔃'
+    A:'𝗔',B:'𝗕',C:'𝗖',D:'𝗗',E:'𝗘',F:'𝗙',G:'𝗚',H:'𝗛',I:'𝗜',J:'𝗝',
+    K:'𝗞',L:'𝗟',M:'𝗠',N:'𝗡',O:'𝗢',P:'𝗣',Q:'𝗤',R:'𝗥',S:'𝗦',
+    T:'𝗧',U:'𝗨',V:'𝗩',W:'𝗪',X:'𝗫',Y:'𝗬',Z:'𝗭',
+    a:'𝗮',b:'𝗯',c:'𝗰',d:'𝗱',e:'𝗲',f:'𝗳',g:'𝗴',h:'𝗵',i:'𝗶',
+    j:'𝗷',k:'𝗸',l:'𝗹',m:'𝗺',n:'𝗻',o:'𝗼',p:'𝗽',q:'𝗾',
+    r:'𝗿',s:'𝗌',t:'𝘁',u:'𝘂',v:'𝘃',w:'𝘄',x:'𝘅',y:'𝘆',z:'𝘇'
   };
-  return text.split('').map(c => fontMap[c] || c).join('');
+  return [...text].map(c => fontMap[c] || c).join('');
 }
 
 module.exports = {
   config: {
     name: "help",
-    version: "2.0",
+    version: "3.0",
     author: "Kyo Soma ✨",
-    countDown: 5,
     role: 0,
-    shortDescription: { en: "View commands list" },
-    longDescription: { en: "Show all commands and details in style!" },
+    countDown: 5,
+    shortDescription: { en: "Command list" },
+    longDescription: { en: "Cool & clean command menu" },
     category: "info",
-    guide: { en: "{pn} [command_name]" },
+    guide: { en: "{pn}help [command]" },
     priority: 1
   },
 
   onStart: async ({ message, args, event, role }) => {
     const prefix = await getPrefix(event.threadID);
 
-    // 🎴 Si pas d'argument : afficher toutes les commandes
+    // 📌 MENU PRINCIPAL
     if (!args[0]) {
       const categories = {};
-      let msg = `🌌✨ 𝓑𝓛𝓤𝓔 𝓛𝓞𝓒𝓚 𝓒𝓞𝓜𝓜𝓐𝓝𝓓𝓢 ✨🌌\n\n`;
+      let visibleCount = 0;
+
+      let msg = `
+✨━━━━━━━━━━━━━━━━━━✨
+   😎 𝗖𝗢𝗢𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗠𝗘𝗡𝗨 😎
+✨━━━━━━━━━━━━━━━━━━✨
+
+📌 Prefix : ${prefix}
+`;
 
       for (const [name, cmd] of commands) {
         if (cmd.config.role > role) continue;
-        const cat = cmd.config.category || "NO CATEGORY";
+        const cat = cmd.config.category || "other";
         if (!categories[cat]) categories[cat] = [];
         categories[cat].push(name);
+        visibleCount++;
       }
 
       for (const cat of Object.keys(categories).sort()) {
-        msg += `🌀─── [ ${applyFont(cat.toUpperCase())} ] ───🌀\n`;
+        msg += `\n🌐 ${applyFont(cat.toUpperCase())}\n`;
+        msg += `───────────────\n`;
         for (const name of categories[cat].sort()) {
-          msg += `⚡ ${applyFont(name)}\n`;
+          msg += `👉 ${applyFont(name)}\n`;
         }
-        msg += `\n`;
       }
 
-      msg += `💠 TOTAL COMMANDS: ${commands.size}\n`;
-      msg += `💠 PREFIX: ${prefix}\n`;
-      msg += `💬 Type "${prefix}help <command>" to see details.\n`;
+      // ✅ FOOTER COOL SIMPLE
+      msg += `
+━━━━━━━━━━━━━━━━━━
+✨ ${visibleCount} commandes disponibles
+💡 ${prefix}help <commande>
+━━━━━━━━━━━━━━━━━━
+`;
 
-      await message.reply(msg);
-      return;
+      return message.reply(msg);
     }
 
-    // 🎴 Si un argument : afficher les détails d'une commande
-    const commandName = args[0].toLowerCase();
-    const command = commands.get(commandName) || aliases.get(commandName) && commands.get(aliases.get(commandName));
+    // 📖 INFO COMMANDE
+    const cmdName = args[0].toLowerCase();
+    const command =
+      commands.get(cmdName) ||
+      (aliases.get(cmdName) && commands.get(aliases.get(cmdName)));
 
     if (!command) {
-      await message.reply(`❌ Command not found! ❌`);
-      return;
+      return message.reply("❌ Commande introuvable.");
     }
 
     const cfg = command.config;
-    const roleText = {0:"All users",1:"Group admins",2:"Bot admins"}[cfg.role] || "Unknown";
-    const usage = (cfg.guide?.en || "{pn} " + cfg.name).replace("{pn}", prefix);
+    const roleText = { 0: "Tous", 1: "Admins groupe", 2: "Admins bot" }[cfg.role] || "Inconnu";
+    const usage = (cfg.guide?.en || `${prefix}${cfg.name}`).replace("{pn}", prefix);
 
     const resp = `
-🌟─── [ ${applyFont(cfg.name.toUpperCase())} ] ───🌟
-💠 Version: ${cfg.version || "1.0"}
-💠 Author: ${cfg.author}
-💠 Role: ${roleText}
-💠 Cooldown: ${cfg.countDown || 2}s
+😎━━━━━━━━━━━━━━😎
+   📖 𝗜𝗡𝗙𝗢 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗘
+😎━━━━━━━━━━━━━━😎
 
-💬 Description:
-${cfg.longDescription?.en || "No description"}
+🔹 Nom      : ${applyFont(cfg.name)}
+🔹 Version  : ${cfg.version || "1.0"}
+🔹 Auteur   : ${cfg.author}
+🔹 Accès    : ${roleText}
+🔹 Cooldown : ${cfg.countDown || 2}s
 
-📝 Usage:
+📝 Description
+${cfg.longDescription?.en || "Aucune description"}
+
+🛠 Utilisation
 ${usage}
 `;
 
-    await message.reply(resp);
+    return message.reply(resp);
   }
 };
