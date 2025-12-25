@@ -16,12 +16,12 @@ function applyFont(text = "") {
 module.exports = {
   config: {
     name: "help",
-    version: "3.0",
-    author: "Kyo Soma ✨",
+    version: "🎄 Noël Edition",
+    author: "Kyo Soma 🎅",
     role: 0,
     countDown: 5,
-    shortDescription: { en: "Command list" },
-    longDescription: { en: "Cool & clean command menu" },
+    shortDescription: { en: "Christmas command menu" },
+    longDescription: { en: "Cool Christmas themed command list" },
     category: "info",
     guide: { en: "{pn}help [command]" },
     priority: 1
@@ -30,21 +30,23 @@ module.exports = {
   onStart: async ({ message, args, event, role }) => {
     const prefix = await getPrefix(event.threadID);
 
-    // 📌 MENU PRINCIPAL
+    // 🎄 MENU PRINCIPAL
     if (!args[0]) {
       const categories = {};
       let visibleCount = 0;
 
       let msg = `
-✨━━━━━━━━━━━━━━━━━━✨
-   😎 𝗖𝗢𝗢𝗟 𝗖𝗢𝗠𝗠𝗔𝗡𝗗 𝗠𝗘𝗡𝗨 😎
-✨━━━━━━━━━━━━━━━━━━✨
+🎄❄️━━━━━━━━━━━━━━━━━━❄️🎄
+   🎅 𝗖𝗛𝗥𝗜𝗦𝗧𝗠𝗔𝗦 𝗠𝗘𝗡𝗨 🎅
+🎄❄️━━━━━━━━━━━━━━━━━━❄️🎄
 
-📌 Prefix : ${prefix}
+☃️ Prefix : ${prefix}
 `;
 
       for (const [name, cmd] of commands) {
+        if (!cmd?.config) continue;
         if (cmd.config.role > role) continue;
+
         const cat = cmd.config.category || "other";
         if (!categories[cat]) categories[cat] = [];
         categories[cat].push(name);
@@ -52,32 +54,33 @@ module.exports = {
       }
 
       for (const cat of Object.keys(categories).sort()) {
-        msg += `\n🌐 ${applyFont(cat.toUpperCase())}\n`;
-        msg += `───────────────\n`;
+        msg += `\n🎁 ${applyFont(cat.toUpperCase())}\n`;
+        msg += `❄️──────────────❄️\n`;
         for (const name of categories[cat].sort()) {
-          msg += `👉 ${applyFont(name)}\n`;
+          msg += `🎄 ${applyFont(name)}\n`;
         }
       }
 
-      // ✅ FOOTER COOL SIMPLE
+      // 🎄 FOOTER NOËL
       msg += `
-━━━━━━━━━━━━━━━━━━
-✨ ${visibleCount} commandes disponibles
-💡 ${prefix}help <commande>
-━━━━━━━━━━━━━━━━━━
+❄️━━━━━━━━━━━━━━━━━━❄️
+🎁 ${visibleCount} commandes disponibles
+🎅 ${prefix}help <commande>
+❄️ Joyeux Noël ❄️
+❄️━━━━━━━━━━━━━━━━━━❄️
 `;
 
       return message.reply(msg);
     }
 
-    // 📖 INFO COMMANDE
+    // 🎁 INFO COMMANDE
     const cmdName = args[0].toLowerCase();
     const command =
       commands.get(cmdName) ||
       (aliases.get(cmdName) && commands.get(aliases.get(cmdName)));
 
     if (!command) {
-      return message.reply("❌ Commande introuvable.");
+      return message.reply("❌ Commande introuvable 🎄");
     }
 
     const cfg = command.config;
@@ -85,20 +88,20 @@ module.exports = {
     const usage = (cfg.guide?.en || `${prefix}${cfg.name}`).replace("{pn}", prefix);
 
     const resp = `
-😎━━━━━━━━━━━━━━😎
-   📖 𝗜𝗡𝗙𝗢 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗘
-😎━━━━━━━━━━━━━━😎
+🎄━━━━━━━━━━━━━━🎄
+   🎁 𝗜𝗡𝗙𝗢 𝗖𝗢𝗠𝗠𝗔𝗡𝗗𝗘
+🎄━━━━━━━━━━━━━━🎄
 
-🔹 Nom      : ${applyFont(cfg.name)}
-🔹 Version  : ${cfg.version || "1.0"}
-🔹 Auteur   : ${cfg.author}
-🔹 Accès    : ${roleText}
-🔹 Cooldown : ${cfg.countDown || 2}s
+🎅 Nom      : ${applyFont(cfg.name)}
+🎁 Version  : ${cfg.version || "1.0"}
+🎄 Auteur   : ${cfg.author}
+🔔 Accès    : ${roleText}
+⏱ Cooldown : ${cfg.countDown || 2}s
 
-📝 Description
+❄️ Description
 ${cfg.longDescription?.en || "Aucune description"}
 
-🛠 Utilisation
+🎁 Utilisation
 ${usage}
 `;
 
