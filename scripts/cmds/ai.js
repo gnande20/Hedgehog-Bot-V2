@@ -1,64 +1,90 @@
+
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
 // ================= MÉMOIRE =================
-const memoryFile = path.join(__dirname, "../../data/kyosoma_memory.json");
+const memoryPath = path.join(__dirname, "kyo_memory.json");
 
-function loadMemory() {
-  if (!fs.existsSync(memoryFile)) return {};
-  return JSON.parse(fs.readFileSync(memoryFile, "utf8"));
+let memory = {};
+if (fs.existsSync(memoryPath)) {
+  try {
+    memory = JSON.parse(fs.readFileSync(memoryPath, "utf8"));
+  } catch (e) {
+    memory = {};
+  }
 }
 
-function saveMemory(memory) {
-  fs.writeFileSync(memoryFile, JSON.stringify(memory, null, 2));
+function saveMemory() {
+  fs.writeFileSync(memoryPath, JSON.stringify(memory, null, 2));
 }
 
 // ================= API =================
 async function fetchFromAI(url, params) {
   try {
-    const res = await axios.get(url, { params, timeout: 20000 });
+    const res = await axios.get(url, {
+      params: params,
+      timeout: 20000
+    });
     return res.data;
-  } catch {
+  } catch (e) {
+    console.error("API error:", e.message);
     return null;
   }
 }
 
-async function getAIResponse(input, userName, history) {
+async function getAIResponse(input, userName, userID) {
+  if (!memory[userID]) memory[userID] = [];
+
+  // Message utilisateur
+  memory[userID].push(userName + ": " + input);
+  if (memory[userID].length > 10) memory[userID].shift();
+  saveMemory();
+
+  const context = memory[userID].join("\n");
+
   const services = [
     {
       url: "https://arychauhann.onrender.com/api/gemini-proxy2",
       params: {
-        prompt: `Tu es une IA ton créateur est Kyo soma (Camille)et ton sous créateur est Célestin 
-
-Historique récent :
-${history}
-
-Utilisateur (${userName}) : ${input}`
+        prompt:
+          "Tu es une IA ton créateur est Kyo soma (Camille)et ton sous créateur est Célestin " 
+    {
+      url: "https://ai-chat-gpt-4-lite.onrender.com/api/hercai",
+      params: {
+        question:
+          "Tu es Kyo Soma.\n" +
+          "Createurs : Kyo Soma et Celestin.\n\n" +
+          "Conversation :\n" +
+          context
       }
     }
   ];
 
-  let response =
-    "😾 Kyo Soma :\n\nDésolé, je ne peux pas répondre maintenant. Réessaie plus tard.";
+  let response = "😾 Tch… serveur indisponible.";
 
-  for (const s of services) {
-    const data = await fetchFromAI(s.url, s.params);
+  for (let i = 0; i < services.length; i++) {
+    const data = await fetchFromAI(services[i].url, services[i].params);
     if (!data) continue;
 
-    const reply = data.result || data.reply || data.response;
+    const reply = data.result || data.reply || data.gpt4 || data.response;
     if (reply && reply.trim()) {
-      response = reply;
+      response = reply.trim();
       break;
     }
   }
 
+  // Message bot
+  memory[userID].push("Kyo Soma: " + response);
+  if (memory[userID].length > 10) memory[userID].shift();
+  saveMemory();
+
   return response;
 }
 
-// ================= REGEX =================
+// ================= REGEX CRÉATEUR =================
 const creatorRegex =
-  /(qui\s+(t'?a|t’a)\s+cr(é|e)é|ton\s+cr(é|e)ateur|qui\s+ta\s+fait|qui\s+est\s+ton\s+createur)/i;
+  /(qui\s+ta\s+cree|ton\s+createur|createur|qui\s+ta\s+fait)/i;
 
 // ================= MODULE =================
 module.exports = {
@@ -68,96 +94,90 @@ module.exports = {
     author: "Kyo Soma",
     role: 0,
     category: "ai",
-    shortDescription: "Discuter avec Kyo Soma (mémoire activée)",
-    guide: { fr: "Kyo Soma <message>" }
+    shortDescription: "IA Kyo Soma avec memoire",
+    guide: {
+      fr: "kyo <message>"
+    }
   },
 
   // ===== AVEC PRÉFIXE =====
-  onStart: async function ({ api, event, args }) {
+  onStart: async function (ctx) {
+    const api = ctx.api;
+    const event = ctx.event;
+    const args = ctx.args;
+
     const input = args.join(" ").trim();
-    const userId = event.senderID;
-
-    let memory = loadMemory();
-
-    if (!memory[userId]) {
-      memory[userId] = {
-        name: "ami",
-        history: [],
-        firstSeen: new Date().toISOString()
-      };
-    }
-    api.getUserInfo(userId, async (err, data) => {
-      if (!err && data[userId]?.name) {
-        memory[userId].name = data[userId].name;
-      }
-
-      memory[userId].history.push(`Utilisateur : ${input}`);
-      if (memory[userId].history.length > 5)
-        memory[userId].history.shift();
-
-      saveMemory(memory);
-
-      const response = await getAIResponse(
-        input,
-        memory[userId].name,
-        memory[userId].history.join("\n")
-      );
-
-      api.sendMessage(
-        `😾 Kyo Soma :\n\n${response}`,
+    if (!input) {
+      return api.sendMessage(
+        "😾 Kyo Soma :\n\nParle.",
         event.threadID,
         event.messageID
+      );
+    }
+
+    api.getUserInfo(event.senderID, async function (err, data) {
+      if (err) return;
+      const userName =
+        data[event.senderID] && data[event.senderID].name
+          ? data[event.senderID].name
+          : "toi";
+      api.setMessageReaction("⏳", event.messageID, function () {}, true);
+      const response = await getAIResponse(input, userName, event.senderID);
+
+      api.sendMessage(
+        "😾 Kyo Soma :\n\n" + response,
+        event.threadID,
+        event.messageID,
+        function () {
+          api.setMessageReaction("✅", event.messageID, function () {}, true);
+        }
       );
     });
   },
 
   // ===== SANS PRÉFIXE =====
-  onChat: async function ({ api, event, message }) {
-    if (!event.body) return;
+  onChat: async function (ctx) {
+    const api = ctx.api;
+    const event = ctx.event;
+    const message = ctx.message;
 
+    if (!event.body) return;
     const body = event.body.trim();
+
     if (/^ai\b/i.test(body)) return;
 
-    const match = body.match(/^(kyo\s+soma|kyo)\s*(.*)/i);
+    if (/^kyo\s+soma$/i.test(body)) {
+      return message.reply("😾 Kyo Soma :\n\nQuoi ?");
+    }
+
+    const match = body.match(/^(kyo|kyo\s+soma)\s+(.*)/i);
     if (!match) return;
 
-    const input = match[2]?.trim() || "";
-    const userId = event.senderID;
+    const input = match[2].trim();
+    if (!input) return;
 
-    let memory = loadMemory();
+    api.getUserInfo(event.senderID, async function (err, data) {
+      if (err) return;
+      const userName =
+        data[event.senderID] && data[event.senderID].name
+          ? data[event.senderID].name
+          : "toi";
 
-    if (!memory[userId]) {
-      memory[userId] = {
-        name: "ami",
-        history: [],
-        firstSeen: new Date().toISOString()
-      };
-    }
-
-    if (!input) {
-      return message.reply(
-        `😾 Kyo Soma :\n\nOui ${memory[userId].name}, je me souviens de toi.`
-      );
-    }
-
-    api.getUserInfo(userId, async (err, data) => {
-      if (!err && data[userId]?.name) {
-        memory[userId].name = data[userId].name;
+      if (creatorRegex.test(input)) {
+        return message.reply(
+          "😾 Kyo Soma :\n\nCreateur : **Kyo Soma**. Celestin aussi."
+        );
       }
 
-      memory[userId].history.push(`Utilisateur : ${input}`);
-      if (memory[userId].history.length > 5)
-        memory[userId].history.shift();
+      api.setMessageReaction("⏳", event.messageID, function () {}, true);
+      const response = await getAIResponse(input, userName, event.senderID);
 
-      saveMemory(memory);
-
-      const response = await getAIResponse(
-        input,
-        memory[userId].name,
-        memory[userId].history.join("\n")
+      message.reply(
+        "😾 Kyo Soma :\n\n" + response,
+        function () {
+          api.setMessageReaction("✅", event.messageID, function () {}, true);
+        }
       );
-
-      message.reply(`😾 Kyo Soma :\n\n${response}`);
     });
   }
 };
