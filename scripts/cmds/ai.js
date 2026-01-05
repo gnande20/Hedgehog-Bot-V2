@@ -1,31 +1,24 @@
-
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 
-// ================= MÉMOIRE =================
-const memoryPath = path.join(__dirname, "kyo_memory.json");
+// 📂 Fichier mémoire persistante
+const memoryPath = path.join(__dirname, "ayanokoji_memory.json");
 
-let memory = {};
-if (fs.existsSync(memoryPath)) {
-  try {
-    memory = JSON.parse(fs.readFileSync(memoryPath, "utf8"));
-  } catch (e) {
-    memory = {};
-  }
-}
+// Charger la mémoire
+let memoryDB = fs.existsSync(memoryPath)
+  ? JSON.parse(fs.readFileSync(memoryPath, "utf8"))
+  : {};
 
+// Sauvegarde mémoire
 function saveMemory() {
-  fs.writeFileSync(memoryPath, JSON.stringify(memory, null, 2));
+  fs.writeFileSync(memoryPath, JSON.stringify(memoryDB, null, 2));
 }
 
-// ================= API =================
+// --- Appel API ---
 async function fetchFromAI(url, params) {
   try {
-    const res = await axios.get(url, {
-      params: params,
-      timeout: 20000
-    });
+    const res = await axios.get(url, { params, timeout: 60000 });
     return res.data;
   } catch (e) {
     console.error("API error:", e.message);
@@ -33,149 +26,125 @@ async function fetchFromAI(url, params) {
   }
 }
 
-async function getAIResponse(input, userName, userID) {
-  if (!memory[userID]) memory[userID] = [];
+// --- Réponse IA ---
+async function getAIResponse(input, userId, userName) {
+  if (!memoryDB[userId]) {
+    memoryDB[userId] = {
+      history: [],
+      mode: "normal"
+    };
+  }
 
-  // Message utilisateur
-  memory[userID].push(userName + ": " + input);
-  if (memory[userID].length > 10) memory[userID].shift();
+  const userData = memoryDB[userId];
+
+  userData.history.push(input);
+  if (userData.history.length > 10) userData.history.shift();
+
   saveMemory();
 
-  const context = memory[userID].join("\n");
+  const personality =
+    userData.mode === "manipulateur"
+      ? `Tu es Kiyotaka Ayanokōji en mode manipulateur.
+Tu es calme, stratégique, psychologique, jamais agressif.
+Tu analyses l'utilisateur et influences subtilement ses décisions.`
+      : `Tu es Kiyotaka Ayanokōji.
+Tu es respectueux, calme, analytique, intelligent et posé aussi une IA créé par Testsuya Kuroko.`;
+
+  const context = `
+${personality}
+
+Nom utilisateur : ${userName}
+Historique récent :
+${userData.history.map((h, i) => `${i + 1}. ${h}`).join("\n")}
+
+Question actuelle : ${input}
+`;
 
   const services = [
     {
       url: "https://arychauhann.onrender.com/api/gemini-proxy2",
-      params: {
-        prompt:
-          "Tu es une IA ton créateur est Kyo soma (Camille)et ton sous créateur est Célestin " 
+      params: { prompt: context }
+    },
     {
       url: "https://ai-chat-gpt-4-lite.onrender.com/api/hercai",
-      params: {
-        question:
-          "Tu es Kyo Soma.\n" +
-          "Createurs : Kyo Soma et Celestin.\n\n" +
-          "Conversation :\n" +
-          context
-      }
+      params: { question: context }
     }
   ];
 
-  let response = "😾 Tch… serveur indisponible.";
-
-  for (let i = 0; i < services.length; i++) {
-    const data = await fetchFromAI(services[i].url, services[i].params);
-    if (!data) continue;
-
-    const reply = data.result || data.reply || data.gpt4 || data.response;
-    if (reply && reply.trim()) {
-      response = reply.trim();
-      break;
-    }
+  for (const s of services) {
+    const data = await fetchFromAI(s.url, s.params);
+    const reply = data?.result || data?.reply || data?.gpt4 || data?.response;
+    if (reply && reply.trim()) return reply;
   }
 
-  // Message bot
-  memory[userID].push("Kyo Soma: " + response);
-  if (memory[userID].length > 10) memory[userID].shift();
-  saveMemory();
-
-  return response;
+  return "Je n’ai pas assez d’informations pour répondre.";
 }
 
-// ================= REGEX CRÉATEUR =================
-const creatorRegex =
-  /(qui\s+ta\s+cree|ton\s+createur|createur|qui\s+ta\s+fait)/i;
-
-// ================= MODULE =================
+// --- MODULE ---
 module.exports = {
   config: {
-    name: "kyosoma",
-    aliases: ["kyo soma", "kyo"],
-    author: "Kyo Soma",
+    name: "ayanokoji",
+    aliases: ["ayanokoji", "kiyotaka"],
+    author: "Testsuya Kuroko",
     role: 0,
     category: "ai",
-    shortDescription: "IA Kyo Soma avec memoire",
+    shortDescription: "Kiyotaka Ayanokōji — IA stratégique avec mémoire",
     guide: {
-      fr: "kyo <message>"
+      fr: "Ayanokoji <question> | Ayanokoji mode manipulateur"
     }
   },
 
-  // ===== AVEC PRÉFIXE =====
-  onStart: async function (ctx) {
-    const api = ctx.api;
-    const event = ctx.event;
-    const args = ctx.args;
-
-    const input = args.join(" ").trim();
-    if (!input) {
-      return api.sendMessage(
-        "😾 Kyo Soma :\n\nParle.",
-        event.threadID,
-        event.messageID
-      );
-    }
-
-    api.getUserInfo(event.senderID, async function (err, data) {
-      if (err) return;
-      const userName =
-        data[event.senderID] && data[event.senderID].name
-          ? data[event.senderID].name
-          : "toi";
-      api.setMessageReaction("⏳", event.messageID, function () {}, true);
-      const response = await getAIResponse(input, userName, event.senderID);
-
-      api.sendMessage(
-        "😾 Kyo Soma :\n\n" + response,
-        event.threadID,
-        event.messageID,
-        function () {
-          api.setMessageReaction("✅", event.messageID, function () {}, true);
-        }
-      );
-    });
-  },
-
-  // ===== SANS PRÉFIXE =====
-  onChat: async function (ctx) {
-    const api = ctx.api;
-    const event = ctx.event;
-    const message = ctx.message;
-
+  onChat: async function ({ api, event, message }) {
     if (!event.body) return;
-    const body = event.body.trim();
+    const content = event.body.trim();
 
-    if (/^ai\b/i.test(body)) return;
-
-    if (/^kyo\s+soma$/i.test(body)) {
-      return message.reply("😾 Kyo Soma :\n\nQuoi ?");
+    // Appel simple
+    if (/^(ayanokoji|kiyotaka)$/i.test(content)) {
+      return message.reply(
+        "❮ Kiyotaka Ayanokōji ❯\n\nJe suis présent. Parle."
+      );
     }
 
-    const match = body.match(/^(kyo|kyo\s+soma)\s+(.*)/i);
+    // Commandes mode
+    if (/^ayanokoji mode manipulateur$/i.test(content)) {
+      if (!memoryDB[event.senderID]) memoryDB[event.senderID] = { history: [], mode: "normal" };
+      memoryDB[event.senderID].mode = "manipulateur";
+      saveMemory();
+      return message.reply("🕶️ Mode manipulateur activé.");
+    }
+
+    if (/^ayanokoji mode normal$/i.test(content)) {
+      if (!memoryDB[event.senderID]) memoryDB[event.senderID] = { history: [], mode: "normal" };
+      memoryDB[event.senderID].mode = "normal";
+      saveMemory();
+      return message.reply("🤍 Mode normal activé.");
+    }
+
+    // Question
+    const match = content.match(/^(ayanokoji|kiyotaka)\s+(.*)/i);
     if (!match) return;
 
     const input = match[2].trim();
     if (!input) return;
 
-    api.getUserInfo(event.senderID, async function (err, data) {
+    api.getUserInfo(event.senderID, async (err, ret) => {
       if (err) return;
-      const userName =
-        data[event.senderID] && data[event.senderID].name
-          ? data[event.senderID].name
-          : "toi";
 
-      if (creatorRegex.test(input)) {
-        return message.reply(
-          "😾 Kyo Soma :\n\nCreateur : **Kyo Soma**. Celestin aussi."
-        );
-      }
+      const userName = ret[event.senderID]?.name || "Utilisateur";
 
-      api.setMessageReaction("⏳", event.messageID, function () {}, true);
-      const response = await getAIResponse(input, userName, event.senderID);
+      api.setMessageReaction("⏳", event.messageID, () => {}, true);
+
+      const response = await getAIResponse(input, event.senderID, userName);
 
       message.reply(
-        "😾 Kyo Soma :\n\n" + response,
-        function () {
-          api.setMessageReaction("✅", event.messageID, function () {}, true);
+        `✨━━━━━━━━━━━✨
+❮ Kiyotaka Ayanokōji ❯
+
+${response}
+
+✨━━━━━━━━━━━✨`,
+        (e) => {
+          api.setMessageReaction(e ? "❌" : "✅", event.messageID, () => {}, true);
         }
       );
     });
