@@ -22,7 +22,7 @@ const phrasesKyotaka = [
   "🧠 Analyse tes choix avant de bouger...",
   "⚔️ Même un pion peut devenir ton meilleur allié.",
   "🎯 Garde ton calme. Tout est sous contrôle.",
-  "👁️ Chaque erreur que tu fais me rapproche de la victoire...",
+  "👁️ Chaque erreur te rapproche de la victoire...",
   "💡 La patience est souvent la clé du succès."
 ];
 
@@ -41,108 +41,103 @@ function render(board){
   return t;
 }
 
+// Génère uniquement les coups légaux pour les pions
 function generateButtons(board){
   const buttons = [];
-  // On limite à quelques coups pour ne pas bloquer l'interface Messenger
-  for(let i=6;i<=6;i++){ 
-    for(let j=0;j<8;j++){
-      if(board[i][j]==="♙"){
-        if(board[i-1][j]==="⬜") {
-            buttons.push({type:"postback", title:`${String.fromCharCode(97+j)}${8-i}→${String.fromCharCode(97+j)}${8-(i-1)}`, payload:`move ${String.fromCharCode(97+j)}${8-i} ${String.fromCharCode(97+j)}${8-(i-1)}`});
-        }
-      }
-      if(buttons.length >= 5) break; // Limite pour l'affichage
+  for(let j=0;j<8;j++){
+    let i = 6; // ligne des pions du joueur
+    if(board[i][j] === "♙"){
+      // avancer 1 case
+      if(board[i-1][j] === "⬜") buttons.push({type:"postback", title:`${String.fromCharCode(97+j)}2→${String.fromCharCode(97+j)}3`, payload:`move ${String.fromCharCode(97+j)}2 ${String.fromCharCode(97+j)}3`});
+      // avancer 2 cases depuis ligne initiale
+      if(board[i-1][j]==="⬜" && board[i-2][j]==="⬜") buttons.push({type:"postback", title:`${String.fromCharCode(97+j)}2→${String.fromCharCode(97+j)}4`, payload:`move ${String.fromCharCode(97+j)}2 ${String.fromCharCode(97+j)}4`});
+      // capture diagonale gauche
+      if(j-1>=0 && "♟♜♞♝♛♚".includes(board[i-1][j-1])) buttons.push({type:"postback", title:`${String.fromCharCode(97+j)}2→${String.fromCharCode(97+j-1)}3`, payload:`move ${String.fromCharCode(97+j)}2 ${String.fromCharCode(97+j-1)}3`});
+      // capture diagonale droite
+      if(j+1<8 && "♟♜♞♝♛♚".includes(board[i-1][j+1])) buttons.push({type:"postback", title:`${String.fromCharCode(97+j)}2→${String.fromCharCode(97+j+1)}3`, payload:`move ${String.fromCharCode(97+j)}2 ${String.fromCharCode(97+j+1)}3`});
     }
   }
-  buttons.push({type:"postback", title:"Arrêter", payload:"stop"});
+  buttons.push({type:"postback", title:"stop", payload:"stop"});
   return buttons;
 }
 
+// BOT simple
 function botMove(board, id){
   for(let i=0;i<8;i++){
     for(let j=0;j<8;j++){
       const piece = board[i][j];
       if(piece!=="⬜" && "♟♜♞♝♛♚".includes(piece)){
+        // capture diagonale droite
         if(i+1<8 && j+1<8 && "♙♖♘♗♕♔".includes(board[i+1][j+1])){
           scores[id].bot += pieceValues[board[i+1][j+1]];
-          board[i+1][j+1]=piece; board[i][j]="⬜"; return `🤖 BOT capture une pièce !`; 
-        }
+          board[i+1][j+1]=piece; board[i][j]="⬜"; return `🤖 BOT capture un pion !`; }
+        // capture diagonale gauche
+        if(i+1<8 && j-1>=0 && "♙♖♘♗♕♔".includes(board[i+1][j-1])){
+          scores[id].bot += pieceValues[board[i+1][j-1]];
+          board[i+1][j-1]=piece; board[i][j]="⬜"; return `🤖 BOT capture un pion !`; }
+        // avance droit
         if(i+1<8 && board[i+1][j]==="⬜"){ board[i+1][j]=piece; board[i][j]="⬜"; return "🤖 BOT avance prudemment."; }
       }
     }
   }
-  return "🤖 BOT attend ton erreur.";
+  return "🤖 BOT hésite...";
 }
 
 module.exports={
   config:{
     name:"chessclub",
-    aliases:["chess", "echecs"],
-    version:"8.0",
-    author:"Testsuya Kuroko",
+    aliases:["chess"],
+    version:"9.0",
+    author:"Kouakou x GoatBot",
     role:0,
     category:"game",
-    shortDescription: "Jeu d'échecs stratégique",
-    guide: { fr: "chessclub" }
+    shortDescription:"♟️ Chess interactif pions + BOT + score"
   },
 
-  onStart: async function({ api, event, args, message, sendButton }){
+  onStart: async function({ event, args, sendButton }){
     const id = event.senderID;
-    
-    // Sécurité pour le nom
-    const playerName = "Joueur"; 
+    const playerName = event.senderName || "Joueur";
 
-    // Initialisation de la partie
     if(!games[id]){
-      games[id] = clone(initialBoard);
-      scores[id] = {player:0, bot:0};
-      
-      const msg = `♟️ Partie lancée !\n\n${render(games[id])}\n${phraseAleatoire()}\nScore : ${playerName} 0 - 0 BOT`;
-      
-      return typeof sendButton === "function" 
-        ? sendButton(msg, generateButtons(games[id]), event.threadID)
-        : message.reply(msg);
+      games[id]=clone(initialBoard);
+      scores[id]={player:0, bot:0};
+      return sendButton(
+        `♟️ Partie lancée !\nClique sur un bouton pour jouer :\n\n${render(games[id])}\n${phraseAleatoire()}\nScore : ${playerName} 0 - 0 BOT`,
+        generateButtons(games[id])
+      );
     }
 
     const input = args.join(" ").trim();
 
-    // Arrêt de la partie
-    if(input === "stop" || input === "Arrêter"){
+    if(input==="stop"){
       const finalScore = `${playerName} ${scores[id].player} - ${scores[id].bot} BOT`;
-      delete games[id]; 
-      delete scores[id];
-      return message.reply(`❌ Partie terminée.\nScore final : ${finalScore}`);
+      delete games[id]; delete scores[id];
+      return sendButton(`❌ Partie arrêtée.\nScore final : ${finalScore}`, []);
     }
 
-    // Analyse du mouvement
-    const moveMatch = input.match(/move ([a-h][1-8]) ([a-h][1-8])/i);
-    if(!moveMatch){
-      return message.reply("♟️ Choisissez un mouvement via les boutons.");
+    if(!input.match(/^move [a-h][1-8] [a-h][1-8]$/)){
+      return sendButton("❌ Clique sur un bouton pour jouer.", generateButtons(games[id]));
     }
 
-    const from = moveMatch[1];
-    const to = moveMatch[2];
-    
-    const fx=8-parseInt(from[1]), fy=from.toLowerCase().charCodeAt(0)-97;
-    const tx=8-parseInt(to[1]), ty=to.toLowerCase().charCodeAt(0)-97;
+    const [_, from, to] = input.split(" ");
+    const fx=8-parseInt(from[1]), fy=from.charCodeAt(0)-97;
+    const tx=8-parseInt(to[1]), ty=to.charCodeAt(0)-97;
     const board = games[id];
 
-    // Exécution du coup
-    if(board[tx][ty]!=="⬜") scores[id].player += (pieceValues[board[tx][ty]] || 0);
-    board[tx][ty]=board[fx][fy]; 
-    board[fx][fy]="⬜";
+    if(board[fx][fy]==="⬜") return sendButton("❌ Pas de pièce ici.", generateButtons(board));
+
+    // Déplacer le joueur et capturer si nécessaire
+    if(board[tx][ty]!=="⬜") scores[id].player += pieceValues[board[tx][ty]];
+    board[tx][ty]=board[fx][fy]; board[fx][fy]="⬜";
 
     // Coup du BOT
     const botMessage = botMove(board, id);
+
     const scoreDisplay = `${playerName} ${scores[id].player} - ${scores[id].bot} BOT`;
 
-    const response = `♞ Coup : ${from}→${to}\n${botMessage}\n\n${render(board)}\n${phraseAleatoire()}\nScore : ${scoreDisplay}`;
-
-    if(typeof sendButton === "function") {
-        return sendButton(response, generateButtons(board), event.threadID);
-    } else {
-        return message.reply(response);
-    }
+    return sendButton(
+      `♞ Ton coup : ${from}→${to}\n${botMessage}\n\n${render(board)}\n${phraseAleatoire()}\nScore : ${scoreDisplay}`,
+      generateButtons(board)
+    );
   }
 };
-           
