@@ -88,7 +88,7 @@ module.exports={
     name:"chessclub",
     aliases:["chess"],
     version:"9.0",
-    author:"Kouakou x GoatBot",
+    author:"Testsuya Kuroko",
     role:0,
     category:"game",
     shortDescription:"♟️ Chess interactif pions + BOT + score"
